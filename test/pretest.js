@@ -1,5 +1,6 @@
 var vows = require('vows'),
     assert = require("assert");
+
 require('../SC/core');
 require('../ThothSC');
 

@@ -1,4 +1,5 @@
 /*globals global*/
+var sys = require('sys');
 global.sc_require = function(){};
 
 require('./ThothSC/core');
@@ -20,3 +21,4 @@ require('./ThothSC/lib/base_client');
 require('./ThothSC/lib/fake_client');
 require('./ThothSC/lib/websocket_client');
 require('./ThothSC/lib/xhrpolling_client');
+

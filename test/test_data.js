@@ -1,8 +1,7 @@
 /*globals ThothSC global */
 
-global.sc_require = function(){};
 require('../SC/core');
-require('../ThothSC/core');
+require('../ThothSC');
 
 ThothSC.Contact = SC.Record.extend({
   primaryKey: 'id',

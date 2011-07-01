@@ -5,8 +5,7 @@ var vows = require('vows'),
     sys = require('sys'),
     repl = require('repl'),
     ds, store;
-    
-global.sc_require = function(){};
+
 require('../SC/core');
 require('../ThothSC');
 require('./test_data');
@@ -26,8 +25,6 @@ var callbackCreator = function(callback,recordData){
     var bucketIdCounter = {},
         request = reqs[0],
         bucket,key,rec;
-    
-    
     
     if(request.createRecord){
       bucket = request.createRecord.bucket;
@@ -87,7 +84,11 @@ vows.describe('Store interactions').addBatch({
       },
       
       'should have 13 data handlers': function(t){
-        assert.length(t._dataMessageHandlers,13);
+        var len = t._dataMessageHandlers.length;
+        var msg = "there seem to be ";
+        msg += (len > 13)? "more": "less";
+        msg += " handlers than expected. Expected 13, got " + len;
+        assert.equal(len,13,msg);
       }
     }
   }
@@ -196,5 +197,36 @@ vows.describe('Store interactions').addBatch({
       assert.equal(ret.get('length'),0);
     }
   }
+}).addBatch({
+  
+  'pushing in': {
+    topic: function(){
+      store.dataSource._store = store;
+      ThothSC.client.messageHandler({data: { createRecord: {
+        bucket: 'group',
+        key: 1,
+        record: { name: 'testgroup'}
+      }}});
+      return true;
+    },
+    
+    'should create': {
+      topic: function(){
+        return store.find(ThothSC.Group);
+      },
+      
+      'a record in the store': function(t){
+        assert.equal(t.get('length'),1);
+      },
+      
+      'a record with the correct information': function(t){
+        var rec = t.get('firstObject');
+        assert.equal(rec.get('id'),1);
+        assert.equal(rec.get('name'),'testgroup');
+      }
+      
+    }
+  }
+  
 })
 .export(module);

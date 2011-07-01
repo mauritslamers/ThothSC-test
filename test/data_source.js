@@ -4,8 +4,7 @@ var vows = require('vows'),
     assert = require("assert"),
     sys = require('sys'),
     ds, store;
-    
-global.sc_require = function(){};
+  
 require('../SC/core');
 require('../ThothSC');
 require('./test_data');
