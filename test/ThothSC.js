@@ -1,8 +1,9 @@
 /*globals global ThothSC*/
 
 var vows = require('vows'),
+    sys = require('sys'),
     assert = require("assert");
-    global.sc_require = function(){};
+    
 require('../SC/core');
 require('../ThothSC');
 
@@ -64,11 +65,19 @@ vows.describe('ThothSC completeness').addBatch({
       assert.ok(t.CryptoSHA1, "no SHA1Crypto");
       assert.ok(t.CryptoSHA256, "no SHA256Crypto");
       assert.ok(t.CryptoSHA512, "no SHA512Crypto");
+    },
+    
+    'has data source': function(t){
+      sys.log('data source is: ' + t.DataSource);
+      assert.ok(t.DataSource);
+      assert.ok(t.DataSource.isClass);
     }
   }
 }).addBatch({
   'ThothSC.DataSource completeness': {
-    topic: ThothSC.DataSource.create({ connectUsing: ThothSC.FAKE }),
+    topic: function(){
+      return ThothSC.DataSource.create({ connectUsing: ThothSC.FAKE });
+    },
     
     'has all store interface functions': function(t){
       assert.ok(t.fetch, "no fetch");
