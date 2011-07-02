@@ -79,6 +79,7 @@ but this is done just for testing purposes.
 
 ThothSC.Student = SC.Record.extend({
   primaryKey: 'id',
+  resource: 'student',
   firstname: SC.Record.attr(String),
   inbetween: SC.Record.attr(String),
   lastname: SC.Record.attr(String),
@@ -88,6 +89,7 @@ ThothSC.Student = SC.Record.extend({
 
 ThothSC.Course = SC.Record.extend({
   primaryKey: 'id',
+  resource: 'course',
   name: SC.Record.attr(String),
   year: SC.Record.attr(String),
   assignments: SC.Record.toMany('ThothSC.Assignment', { isMaster: false, oppositeProperty: 'course'}),
@@ -97,6 +99,7 @@ ThothSC.Course = SC.Record.extend({
 
 ThothSC.Teacher = SC.Record.extend({
   primaryKey: 'id',
+  resource: 'teacher',
   firstname: SC.Record.attr(String),
   inbetween: SC.Record.attr(String),
   lastname: SC.Record.attr(String),
@@ -107,6 +110,7 @@ ThothSC.Teacher = SC.Record.extend({
 
 ThothSC.Lesson = SC.Record.extend({
   primaryKey: 'id',
+  resource: 'lesson',
   moment: SC.Record.attr(String),
   teacher: SC.Record.toOne('ThothSC.Teacher', { isMaster: false, oppositeProperty: 'lesson'}),
   course: SC.Record.toOne('ThothSC.Course', { isMaster: true, oppositeProperty: 'lesson'}),
@@ -116,6 +120,7 @@ ThothSC.Lesson = SC.Record.extend({
 
 ThothSC.Assignment = SC.Record.extend({
   primaryKey: 'id',
+  resource: 'assignment',
   name: SC.Record.attr(String),
   moment: SC.Record.attr(String),
   student: SC.Record.toOne('ThothSC.Student', { isMaster: true, oppositeProperty: 'assignments'}),
