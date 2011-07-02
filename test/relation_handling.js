@@ -12,10 +12,11 @@ require('./test_data');
 
 ThothSC.TestDataSource = ThothSC.DataSource.extend({
   connectUsing: ThothSC.FAKE, 
+  sendRelations: true,
   useAuthentication: false
 });
 
-store = SC.Store.create({ commitRecordsAutomatically: true}).from('ThothSC.TestDataSource');
+store = SC.Store.create({ commitRecordsAutomatically: false }).from('ThothSC.TestDataSource');
 store._getDataSource();
 ThothSC.client.isConnected = true;
 
@@ -24,7 +25,7 @@ var callbackCreator = function(callback,recordData){
     //sys.log('thoth client called with request: ' + sys.inspect(reqs,false,4));
     var bucketIdCounter = {},
         request = reqs[0],
-        bucket,key,rec;
+        bucket,key,rec,i,len,rels;
     
     if(request.createRecord){
       bucket = request.createRecord.bucket;
@@ -33,6 +34,10 @@ var callbackCreator = function(callback,recordData){
       key = bucketIdCounter[bucket];
       rec = request.createRecord.record;
       rec['id'] = key;
+      rels = request.createRecord.relations;
+      for(i=0,len=rels.length;i<len;i+=1){
+        rec[rels[i].propertyName] = rels[i].keys;
+      }
       ThothSC.client.messageHandler({ data: { createRecordResult: { 
           bucket: bucket,
           key: key,
@@ -73,6 +78,7 @@ var callbackCreator = function(callback,recordData){
   return ret;
 };
 
+
 /*
 Testing:
 
@@ -92,6 +98,20 @@ one-to-many with two masters
 many-to-many with one master
 many-to-many with two masters
 
+The schema used:
+                     ┌ ---------------------------------┐
+                    1                                   ∞m
+Student ∞ ---- ∞m Lesson 1m ---- 1m Course ∞m ---- ∞m Teacher
+   ∞                1                 ∞                 ∞m
+   │                |                 |                 |
+   |                1m                |                 |
+   └ -------- 1m Assignment  1m ------┘                 |
+                    1m                                  |
+                    └ ----------------------------------┘
+
+This situation is a bit unlikely of course (a lesson and a course in a one-to-one relationship...)
+but this is done just for testing purposes.
+
 What should ThothSC do:
 - when only one side of a relation is master, the opposite (slave) side should be updated, but not the other way around
 - when there are two masters, both sides should update one another
@@ -108,16 +128,113 @@ the procedures to check are:
 The only outsider is 'isChildRecord' which causes ThothSC to include a record hash instead of an id.
 TODO: what should ThothSC do with it exactly? same as normal? probably yes...
 
+actions: 
+first create a student, then create a lesson: the many to many side should update
+
+//then create a lesson and add a different student: the many to many side should update
+//then update the first lesson to contain the second student, the lessons of the second student should update
+// these two cases are not valid, because the lesson is master, so all the updates will go through the master
+// and the slave update has been shown already in the first test
+
+(then delete the first student, the students in the first lesson should update (SC?))??
+
+
 */
 
-
-
-
 vows.describe('relation testing').addBatch({
-  
-  
-  
-}).export(module);
+  'creating a student record (record without master relations) without relations': {
+    topic: function(){
+      ThothSC.client.callback = callbackCreator(this.callback);
+      SC.RunLoop.begin();
+      store.createRecord(ThothSC.Student, { firstname: 'Pietje', lastname: 'Puck' });
+      store.commitRecords();
+      SC.RunLoop.end();
+    },
+    
+    'should send a request': function(req){
+      sys.log('request is: ' + sys.inspect(req,false,3));
+      assert.ok(req);
+    },
+    
+    'should result in': {
+      topic: function(){
+        return store.find(ThothSC.Student);
+      },
+      
+      'a student record in the store': function(t){
+        assert.equal(t.get('length'),1);
+      },
+      
+      'a student record in the store with empty toMany relations': function(t){
+        var rec = t.get('firstObject').get('attributes');
+        assert.isArray(rec.assignments);
+        assert.isEmpty(rec.assignments);
+        assert.isArray(rec.lessons);
+        assert.isEmpty(rec.lessons);
+      }
+    }
+  }
+}).addBatch({
+  'creating a lesson record (a record with a master toMany relation )': {
+    topic: function(){
+      ThothSC.client.callback = callbackCreator(this.callback);
+      SC.RunLoop.begin();
+      var stud = store.find(ThothSC.Student).get('firstObject');
+      var rec = store.createRecord(ThothSC.Lesson,{ moment: new Date().toString() });
+      rec.get('students').pushObject(stud);
+      store.commitRecords();
+      SC.RunLoop.end();
+    },
+    
+    'should result in a send': function(req){
+      assert.ok(req);
+    },
+    
+    'should result in a lesson record': {
+      topic: function(){
+        return store.find(ThothSC.Lesson);
+      },
+      
+      'being present': function(t){
+        assert.equal(t.get('length'),1);
+      },
+      
+      'containing the right data': function(t){
+        var rec = t.get('firstObject').get('attributes');
+        assert.ok(rec);
+        assert.ok(rec.moment);
+        assert.isArray(rec.students);
+        assert.length(rec.students,1);
+        assert.equal(rec.students[0],1);
+      }
+    },
+    
+    'should result in a student record': {
+      topic: function(){
+        return store.find(ThothSC.Student);
+      },
+      
+      'being still present': function(t){
+        assert.equal(t.get('length'),1);
+      },
+      
+      'having its relations updated': function(t){
+        var rec = t.get('firstObject').get('attributes');
+        assert.ok(rec);
+        assert.isArray(rec.lessons);
+        assert.length(rec.lessons,1);
+        assert.equal(rec.lessons[0],1);
+      }
+    }
+  }
+}).addBatch({
+  'creating a lesson record': {
+    
+  }
+})
+
+
+.export(module);
 
 
 /*
