@@ -223,10 +223,63 @@ vows.describe('Store interactions').addBatch({
         var rec = t.get('firstObject');
         assert.equal(rec.get('id'),1);
         assert.equal(rec.get('name'),'testgroup');
-      }
-      
+      }   
     }
   }
+}).addBatch({
   
+  'updating by push': {
+    topic: function(){
+      ThothSC.client.messageHandler({data: { updateRecord: {
+        bucket: 'group',
+        key: 1,
+        record: { name: 'myTestGroup'}
+      }}});
+      return true;
+    },
+    
+    'should': {
+      topic: function(){
+        return store.find(ThothSC.Group);
+      },
+      
+      'not create more records': function(t){
+        assert.equal(t.get('length'),1,"pushUpdate causes record creation or deletion? number of records " + t.get('length'));
+      },
+      
+      'update the record': function(t){
+        var rec = t.get('firstObject');
+        assert.equal(rec.get('name'),'myTestGroup');
+      }
+    } 
+  }
+}).addBatch({
+  'deletion by push': {
+    topic: function(){
+      ThothSC.client.messageHandler({data: { deleteRecord: {
+        bucket: 'group',
+        key: 1,
+        record: { name: 'myTestGroup'}
+      }}});
+      return true;
+    },
+    
+    'should': {
+      topic: function(){
+        return store.find(ThothSC.Group);
+      },
+      
+      'destroy the given record': function(t){
+        assert.equal(t.get('length'),0);
+      }
+    }
+  }
 })
 .export(module);
+
+/*ThothSC.Address = SC.Record.extend({
+  firstline: SC.Record.attr(String),
+  secondline: SC.Record.attr(String),
+  city: SC.Record.attr(String),
+  contacts: SC.Record.toMany('ThothSC.Contact', { oppositeProperty: 'addresses'})
+}); */
