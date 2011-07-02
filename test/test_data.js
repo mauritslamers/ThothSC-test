@@ -59,3 +59,46 @@ ThothSC.fetchResult = {
   ]
 };
 
+/*
+schema:
+
+                     ┌ ---------------------------------┐
+                    1m                                  1
+Student ∞m ---- ∞ Lesson 1m ---- 1m Course ∞m ---- ∞m Teacher
+   ∞                1                 1                 1m
+   │                |                 |                 |
+   |                1m                |                 |
+   └ -------- 1m Assignment  ∞m ------┘                 |
+                    ∞m                                  |
+                    └ ----------------------------------┘
+
+*/
+
+
+ThothSC.Student = SC.Record.extend({
+  firstname: SC.Record.attr(String),
+  inbetween: SC.Record.attr(String),
+  lastname: SC.Record.attr(String),
+  lessons: SC.Record.toMany('ThothSC.Lesson', { isMaster: true, oppositeProperty: 'students' }),
+  assignments: SC.Record.toMany('ThothSC.Assignment', { isMaster: false, oppositeProperty: 'student'})
+});
+
+ThothSC.Course = SC.Record.extend({
+  name: SC.Record.attr(String),
+  year: SC.Record.attr(String),
+  assignments: SC.Record.toMany('ThothSC.Assignment', { isMaster: false, oppositeProperty: 'course'}),
+  lesson: SC.Record.toOne('ThothSC.Lesson', { isMaster: true, oppositeProperty: 'course'}), // rather unlikely but 1-1 for the sake of testing
+  teachers: SC.Record.toMany('ThothSC.Teacher', { isMaster: true })
+});
+
+ThothSC.Teacher = SC.Record.extend({
+  
+});
+
+ThothSC.Lesson = SC.Record.extend({
+  
+});
+
+ThothSC.Assignment = SC.Record.extend({
+  
+});
