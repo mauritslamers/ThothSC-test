@@ -13,6 +13,7 @@ require('./test_data');
 ThothSC.TestDataSource = ThothSC.DataSource.extend({
   connectUsing: ThothSC.FAKE, 
   sendRelations: true,
+  sendProperties: true,
   useAuthentication: false
 });
 
@@ -35,8 +36,10 @@ var callbackCreator = function(callback,recordData){
       rec = request.createRecord.record;
       rec['id'] = key;
       rels = request.createRecord.relations;
-      for(i=0,len=rels.length;i<len;i+=1){
-        rec[rels[i].propertyName] = rels[i].keys;
+      if(rels){
+        for(i=0,len=rels.length;i<len;i+=1){
+          rec[rels[i].propertyName] = rels[i].keys;
+        }
       }
       ThothSC.client.messageHandler({ data: { createRecordResult: { 
           bucket: bucket,
@@ -79,122 +82,94 @@ var callbackCreator = function(callback,recordData){
 };
 
 
-/*
+ThothSC.ModelOne = SC.Record.extend({
+  primaryKey: 'id',
+  resource: 'one',
+  name: SC.Record.attr(String),
+  toTwoMaster: SC.Record.toOne('ThothSC.ModelTwo', { isMaster: true, oppositeProperty: 'toOneMaster'}),
+  toTwoSlave: SC.Record.toOne('ThothSC.ModelTwo', { isMaster: false, oppositeProperty: 'toOneSlave' }),
+  toTwoMasterForcedInclusion: SC.Record.toOne('ThothSC.ModelTwo', { isMaster: true, oppositeProperty: 'toOneMasterForcedInclusion', forceInclusion: true}),
+  toTwoMasterForcedUpdate: SC.Record.toOne('ThothSC.ModelTwo', { isMaster: true, oppositeProperty: 'toOneMasterForcedUpdate', isUpdatable: true})
+});
 
-Testing:
+ThothSC.ModelTwo = SC.Record.extend({
+  primaryKey: 'id',
+  resource: 'two',  
+  name: SC.Record.attr(String),
+  toOneMaster: SC.Record.toOne('ThothSC.ModelOne', { isMaster: true, oppositeProperty: 'toTwoMaster'}),
+  toOneSlave: SC.Record.toOne('ThothSC.ModelOne', { isMaster: false, oppositeProperty: 'toTwoSlave'}),
+  toOneMasterForcedInclusion: SC.Record.toOne('ThothSC.ModelOne', { isMaster: true, oppositeProperty: 'toTwoMasterForcedInclusion', forceInclusion: true}),
+  toOneMasterForcedUpdate: SC.Record.toOne('ThothSC.ModelOne', { isMaster: true, oppositeProperty: 'toTwoMasterForcedUpdate', isUpdatable: true})
+});
 
-toOne 
-toMany
-isMaster
-isChildRecord
-oppositeProperty
-(isDirectRelation)
-(key)
-
-one-to-one with one master 
-one-to-one with two masters
-one-to-many with one master at one
-one-to-many with one master at many
-one-to-many with two masters
-many-to-many with one master
-many-to-many with two masters
-
-The schema used:
-                     ┌ ---------------------------------┐
-                    1                                   ∞m
-Student ∞ ---- ∞m Lesson 1m ---- 1m Course ∞m ---- ∞m Teacher
-   ∞                1                 ∞                 ∞m
-   │                |                 |                 |
-   |                1m                |                 |
-   └ -------- 1m Assignment  1m ------┘                 |
-                    1m                                  |
-                    └ ----------------------------------┘
-
-This situation is a bit unlikely of course (a lesson and a course in a one-to-one relationship...)
-but this is done just for testing purposes.
-
-What should ThothSC do:
-- when only one side of a relation is master, the opposite (slave) side should be updated, but not the other way around
-- when there are two masters, both sides should update one another
-
-the procedures to check are: 
-- create
-- refresh (something has changed on the server side)
-- update
-- delete
-- pushCreate
-- pushUpdate
-- pushDelete
-
-The only outsider is 'isChildRecord' which causes ThothSC to include a record hash instead of an id.
-TODO: what should ThothSC do with it exactly? same as normal? probably yes...
-
-actions: 
-1. first create a student, then create a lesson: the many to many side should update
-
-//then create a lesson and add a different student: the many to many side should update
-//then update the first lesson to contain the second student, the lessons of the second student should update
-// these two cases are not valid, because the lesson is master, so all the updates will go through the master
-// and the slave update has been shown already in the first test
-2. now add a course and add the lesson, the one-to-one should update
-
-(then delete the first student, the students in the first lesson should update (SC?))??
-
-
-*/
-
-vows.describe('relation testing').addBatch({
-  'creating a student record (record without master relations) without relations': {
+vows.describe('one-to-one relation testing').addBatch({
+  'creating a ModelOne record without relations': {
     topic: function(){
       ThothSC.client.callback = callbackCreator(this.callback);
       SC.RunLoop.begin();
-      store.createRecord(ThothSC.Student, { firstname: 'Pietje', lastname: 'Puck' });
+      store.createRecord(ThothSC.ModelOne, { name: 'Pietje' });
       store.commitRecords();
       SC.RunLoop.end();
     },
     
-    'should send a request': function(req){
-      //sys.log('request is: ' + sys.inspect(req,false,3));
-      assert.ok(req);
+    'should send a correct request': function(req){
+//      sys.log('request is: ' + sys.inspect(req,false,3));
+      var cr = req.createRecord;
+      assert.ok(req, "no request detected");
+      assert.ok(cr, "no createrecord object detected");
+      assert.ok(cr.properties, "no properties detected in request");
+      assert.length(cr.properties,1,"the number of properties in the request is not correct");
+      assert.ok(cr.relations, "no relations found in the request");
+      assert.length(cr.relations,1,"the number of relations in the request is not correct");
     },
-    
+          
     'should result in': {
       topic: function(){
-        return store.find(ThothSC.Student);
+        return store.find(ThothSC.ModelOne);
       },
       
-      'a student record in the store': function(t){
+      'a record in the store': function(t){
         assert.equal(t.get('length'),1);
       },
       
-      'a student record in the store with empty toMany relations': function(t){
+      'a record in the store with empty relations': function(t){
         var rec = t.get('firstObject').get('attributes');
-        assert.isArray(rec.assignments);
-        assert.isEmpty(rec.assignments);
-        assert.isArray(rec.lessons);
-        assert.isEmpty(rec.lessons);
+        assert.isUndefined(rec.toTwoMaster);
+        assert.isUndefined(rec.toTwoSlave);
+        assert.isUndefined(rec.toTwoMasterForcedInclusion);
+        assert.isUndefined(rec.toTwoMasterForcedUpdate);
       }
     }
   }
 }).addBatch({
-  'creating a lesson record (a record with a master toMany relation )': {
+  'creating a ModelTwo record with relations': {
     topic: function(){
       ThothSC.client.callback = callbackCreator(this.callback);
       SC.RunLoop.begin();
-      var stud = store.find(ThothSC.Student).get('firstObject');
-      var rec = store.createRecord(ThothSC.Lesson,{ moment: new Date().toString() });
-      rec.get('students').pushObject(stud);
+      var modOne = store.find(ThothSC.ModelOne).get('firstObject');
+      var rec = store.createRecord(ThothSC.ModelTwo,{ name: 'Puck'});
+      rec.set('toOneMaster',modOne);
+      rec.set('toOneSlave',modOne);
+      rec.set('toOneMasterForcedInclusion',modOne);
+      rec.set('toOneMasterForcedUpdate',modOne);
       store.commitRecords();
       SC.RunLoop.end();
     },
     
-    'should result in a send': function(req){
-      assert.ok(req);
+    'should send a correct request': function(req){
+      sys.log('request is: ' + sys.inspect(req,false,3));
+      var cr = req.createRecord;
+      assert.ok(req, "no request detected");
+      assert.ok(cr, "no createrecord object detected");
+      assert.ok(cr.properties, "no properties detected in request");
+      assert.length(cr.properties,1,"the number of properties in the request is not correct");
+      assert.ok(cr.relations, "no relations found in the request");
+      assert.length(cr.relations,1,"the number of relations in the request is not correct");
     },
     
-    'should result in a lesson record': {
+    'should result in a ModelTwo record': {
       topic: function(){
-        return store.find(ThothSC.Lesson);
+        return store.find(ThothSC.ModelTwo);
       },
       
       'being present': function(t){
@@ -204,16 +179,16 @@ vows.describe('relation testing').addBatch({
       'containing the right data': function(t){
         var rec = t.get('firstObject').get('attributes');
         assert.ok(rec);
-        assert.ok(rec.moment);
-        assert.isArray(rec.students);
-        assert.length(rec.students,1);
-        assert.equal(rec.students[0],1);
+        assert.ok(rec.toOneMaster);
+        assert.isEmpty(rec.toOneSlave);
+        assert.ok(rec.toOneMasterForcedInclusion);
+        assert.ok(rec.toOneMasterForcedUpdate);
       }
     },
     
-    'should result in a student record': {
+    'should result in a ModelOne record': {
       topic: function(){
-        return store.find(ThothSC.Student);
+        return store.find(ThothSC.ModelOne);
       },
       
       'being still present': function(t){
@@ -224,14 +199,59 @@ vows.describe('relation testing').addBatch({
         var rec = t.get('firstObject').get('attributes');
         //sys.log('relations: ' + sys.inspect(ThothSC.modelCache._modelGraphCache.lesson._relations));
         assert.ok(rec);
-        assert.isArray(rec.lessons);
-        assert.length(rec.lessons,1);
-        assert.equal(rec.lessons[0],1);
+        sys.log('attrs: ' + sys.inspect(rec));
+        assert.isUndefined(rec.toTwoMaster);
+        assert.equal(rec.toTwoSlave,1);
+        assert.isUndefined(rec.toTwoMasterForcedInclusion);
+        assert.equal(rec.toTwoMasterForcedUpdate,1);
       }
     }
   }
+}).addBatch({
+  'deleting a record': {
+    topic: function(){
+      ThothSC.client.callback = callbackCreator(this.callback);
+      SC.RunLoop.begin();
+      var rec = store.find(ThothSC.ModelOne,1);
+      rec.destroy();
+      store.commitRecords();
+      SC.RunLoop.end();
+    },
+    
+    'should result in a correct request': function(req){
+      sys.log('request: ' + sys.inspect(req));
+      assert.ok(req);
+    },
+        
+    'should result': {
+      topic: function(){
+        return store.find(ThothSC.ModelOne);
+      },
+      
+      'in the record being destroyed': function(t){
+        assert.ok(t);
+        assert.equal(t.get('length'),0);
+      }
+    },
+    
+    'should result in the relationships': {
+      topic: function(){
+        return store.find(ThothSC.ModelTwo);
+      },
+      
+      'being updated': function(t){
+        var rec = t.get('firstObject');
+        assert.ok(rec, 'record of modelTwo no longer found');
+        assert.isUndefined(rec.toOneMaster);
+        assert.isUndefined(rec.toOneSlave);
+        assert.isUndefined(rec.toOneMasterForcedInclusion);
+        assert.isUndefined(rec.toOneMasterForcedUpdate);
+      }
+    }
+    
+  }
 })
-.addBatch({
+/*.addBatch({
   'creating a course record': {
     topic: function(){
       ThothSC.client.callback = callbackCreator(this.callback);
@@ -283,7 +303,7 @@ vows.describe('relation testing').addBatch({
     } 
     
   }
-})
+}) */
 
 
 .export(module);
