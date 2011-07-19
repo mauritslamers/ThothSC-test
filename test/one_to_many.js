@@ -25,7 +25,8 @@ var callbackCreator = function(callback,recordData){
   var ret = function(reqs){
     //sys.log('thoth client called with request: ' + sys.inspect(reqs,false,4));
     var bucketIdCounter = {},
-        request = reqs[0],
+        originalRequest = reqs[0],
+        request = ThothSC.copy(reqs[0]),
         bucket,key,rec,i,len,rels;
     
     if(request.createRecord){
@@ -49,7 +50,7 @@ var callbackCreator = function(callback,recordData){
         }
       }});
       bucketIdCounter += 1;
-      callback(null,request);
+      callback(null,originalRequest);
     }
     if(request.updateRecord){
       ThothSC.client.messageHandler({ data: { updateRecordResult: 
@@ -57,7 +58,7 @@ var callbackCreator = function(callback,recordData){
           key: request.updateRecord.key,
           record: request.updateRecord.record,
           returnData: request.updateRecord.returnData }}});
-      callback(null,request);
+      callback(null,originalRequest);
     }
     if(request.refreshRecord){
       ThothSC.client.messageHandler({data: { refreshRecordResult: {
@@ -66,7 +67,7 @@ var callbackCreator = function(callback,recordData){
         record: recordData,
         returnData: request.refreshRecord.returnData
       }}});
-      callback(null,request);
+      callback(null,originalRequest);
     }
     if(request.deleteRecord){
       ThothSC.client.messageHandler({ data: { deleteRecordResult: {
@@ -74,7 +75,7 @@ var callbackCreator = function(callback,recordData){
         key: request.deleteRecord.key,
         returnData: request.deleteRecord.returnData
       }}});
-      callback(null,request);
+      callback(null,originalRequest);
     }
     //else sys.log('no request found...');
   };
