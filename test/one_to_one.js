@@ -240,141 +240,16 @@ vows.describe('one-to-one relation testing').addBatch({
       },
       
       'being updated': function(t){
-        var rec = t.get('firstObject');
+        var rec = t.get('firstObject').get('attributes');
         assert.ok(rec, 'record of modelTwo no longer found');
-        assert.isUndefined(rec.toOneMaster);
-        assert.isUndefined(rec.toOneSlave);
-        assert.isUndefined(rec.toOneMasterForcedInclusion);
-        assert.isUndefined(rec.toOneMasterForcedUpdate);
+        sys.log('attrs: ' + sys.inspect(rec));
+        assert.equal(rec.toOneMaster,1, "toOneMaster should not have been updated");
+        assert.isNull(rec.toOneSlave, "toOneSlave should have been updated and set to undefined");
+        assert.equal(rec.toOneMasterForcedInclusion,1, "toMasterForcedInclusion should not have been touched");
+        assert.isNull(rec.toOneMasterForcedUpdate,"toOneMasterForcedUpdate should have been set to undefined");
       }
     }
     
   }
 })
-/*.addBatch({
-  'creating a course record': {
-    topic: function(){
-      ThothSC.client.callback = callbackCreator(this.callback);
-      SC.RunLoop.begin();
-      var lesson = store.find(ThothSC.Lesson).get('firstObject');
-      var rec = store.createRecord(ThothSC.Course,{ name: 'mySubject' });
-      rec.set('lesson',lesson);
-      store.commitRecords();
-      SC.RunLoop.end();
-    },
-    
-    'should cause a request': function(req){
-      //sys.log('request is: ' + sys.inspect(req,false,3));
-      assert.ok(req);
-    },
-    
-    'should result in a course record': {
-      topic: function(){
-        return store.find(ThothSC.Course);
-      },
-      
-      'being present': function(t){
-        assert.equal(t.get('length'),1);
-      },
-      
-      'having the correct relation': function(t){
-        var rec = t.get('firstObject').get('attributes');
-        assert.ok(rec);
-        assert.ok(rec.lesson);
-        assert.equal(rec.lesson,1);
-      }
-    },
-    
-    'should result in a lesson record': {
-      topic: function(){
-        return store.find(ThothSC.Lesson);
-      },
-      
-      'being still present': function(t){
-        assert.equal(t.get('length'),1);
-      },
-      
-      'not having an updated relation': function(t){
-        // not being updated because of master and not have isUpdatable
-        var rec = t.get('firstObject').get('attributes');
-        assert.ok(rec.course);
-        assert.equal(rec.course,1);
-      }
-    } 
-    
-  }
-}) */
-
-
 .export(module);
-
-
-/*
-.addBatch({
-  'pushing in a record with relations': {
-    topic: function(){
-      ThothSC.client.messageHandler({data: { createRecord: {
-        bucket: 'group',
-        key: 1,
-        record: { name: 'testgroup'},
-        relations: [ { propertyName: 'contacts', type: 'toMany', keys: [1] } ]
-      }}});
-      return true;
-    },
-    
-    'should result in': {
-      topic: function(){
-        return store.find(ThothSC.Group);
-      },
-      
-      'a record in the store': function(t){
-        assert.equal(t.get('length'),1);
-      },
-      
-      'the correct datahash': function(t){
-        var sK = t.get('firstObject').get('storeKey');
-        var hash = store.readDataHash(sK);
-        assert.deepEqual(hash,{name:'testgroup',contacts:[1]});
-      },
-      
-      'getting the relation':{
-        topic: function(t){
-          ThothSC.client.callback = callbackCreator(this.callback, { id: 1, firstname: 'me', lastname: 'too'});
-          SC.RunLoop.begin();
-          var s = t.get('firstObject').get('contacts').get('firstObject');
-          //sys.log('contacts is: ' + sys.inspect(s.get('firstObject')));
-          SC.RunLoop.end();
-        },
-        
-        'should try to get the relation data': function(req){
-          assert.ok(req);
-        },
-        
-        'and afterwards the relation': {
-          topic: function(req,t){
-            
-            return t.get('firstObject').get('contacts');
-          },
-          
-          'should be there': function(rel){
-            assert.ok(SC.instanceOf(rel,SC.ManyArray));
-          },
-          
-          'should contain the correct number of records': function(rel){
-            assert.equal(rel.get('length'),1);
-          },
-          
-          'should contain the correct record': function(rel){
-            assert.deepEqual(rel.get('firstObject').get('attributes'),{ id: 1, firstname: 'me', lastname: 'too'});
-          },
-          
-          'should also be visible on the other side': function(rel){
-            var opp = rel.get('firstObject').get('group');
-            assert.equal(opp,1);
-          }
-        }
-      }
-    }
-  }
-})
-*/
